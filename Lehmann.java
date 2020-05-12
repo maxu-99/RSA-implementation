@@ -35,7 +35,7 @@ public class Lehmann
             while( t < 50)
             {
                 Random rand = new Random();
-                int randomNum = rand.nextInt(((num - 1) - 1) + 1 ) + 1;  // 0 < num < randomNum
+                int randomNum = rand.nextInt(((num - 1) - 1) + 1 ) + 1;  // 0 < randomNum < num
                 
                 long r = (long)(Math.pow(randomNum, (num - 1) / 2) % num);       //Binary modular exponentiation required eg : 37
 
