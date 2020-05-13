@@ -2,8 +2,14 @@ import java.util.*;
 
 public class RSA
 {
-	public static final long MINPRIME = 3;
-	public static final long MAXPRIME = 17;
+
+	//Works for (11,13) (33,41) (35,41)
+	public static final long MINPRIME = 10000;
+	public static final long MAXPRIME = 100000;
+
+//	public static final long MINPRIME = 11;
+//	public static final long MAXPRIME = 13;
+
 
 	private long p;
 	private long q;
@@ -13,6 +19,9 @@ public class RSA
 
 	private long publicE;
 	private long privateD;
+
+	private String cipher;
+	private String output;
 
 	public RSA(String line)
 	{
@@ -33,68 +42,76 @@ public class RSA
 
 		//Generate random odd e values from 1 < e < phi
 		publicE = this.getPublicKey();
-		System.out.println("Public key : " + publicE);
+		System.out.println("Public key e : " + publicE);
 
-		privateD = this.gcdExtended(publicE, phi)[1];
-		System.out.println("Private key : " + privateD);
+		privateD = Number.gcdExtended(publicE, phi)[1];
+		System.out.println("Private key d : " + privateD);
+
+		cipher = encrypt(line);
+		output = decrypt(cipher);
+		System.out.println("Encrypted : " + encrypt(line));
+		System.out.println("Decrypted : " + decrypt(encrypt(line)));
 	}
 
 	public RSA()
 	{
 	}
 
+	public String getEncrypt()
+	{
+		return new String(cipher);
+	}
+
+	public String getDecrypt()
+	{
+		return new String(output);
+	}
+
 	public String encrypt(String line)
 	{
-
+		
 		String encrypted = new String();
 		for(int ii = 0; ii < line.length(); ii++)
 		{
 			long plain = (long)line.charAt(ii);
-			long value = modularExponent(plain, publicE, n);
-			char cipher = (char)value;
-			encrypted += cipher;
+			System.out.println("Value of " + line.charAt(ii) + " is " + plain);	
+			if(plain > n)
+			{
+				System.out.println("Hello plain big :" + plain);
+			}
+			
+			long value = Number.modularExponent(plain, publicE, n);
+			System.out.println("Afer encryption value : " + value + " with character " + (char)value);
+			//System.out.println("Value : " + value);
+			if(value > n)
+			{
+				System.out.println("Hello value big : ");
+			}
+	
+
+			encrypted += Long.toString(value) + " ";
 		}
 
 		return encrypted;
+		
 	}
 	
 	public String decrypt(String line)
 	{
-
-		String decrypted = new String();
-		for(int ii = 0; ii < line.length(); ii++)
+		String[] array = line.split(" ");
+		String decrypt = new String();
+		for(int ii = 0; ii < array.length; ii++)
 		{
-			long plain = (long)line.charAt(ii);
-			long value = modularExponent(plain, privateD, n);
-			char cipher = (char)value;
-			decrypted += cipher;
+			long value = Long.parseLong(array[ii]);
+			
+			long d = Number.modularExponent(value, privateD, n);
+
+			decrypt += (char)d;
 		}
 
-		return decrypted;
-	}
+		return decrypt;
 	
-	public long modularExponent(long base, long exponent, long modulus)
-	{
-		String expBits = convertToBinary(exponent);
-
-		long c = 0, f = 1;
-
-		for(int i = 0; i < expBits.length(); i++)
-		{
-			c = 2 * c;
-
-			f = (f * f) % modulus; 
-
-			if(expBits.charAt(i) == '1')
-			{
-				c++;
-				f = (f * base) % modulus;
-			}
-
-		}
-
-		return f;
-	}	
+	}
 
 	public long generateRandomPrime(long minPrime, long maxPrime)
 	{
@@ -107,8 +124,7 @@ public class RSA
 		while(!(surePrime))
 		{
 			prime = (long)rand.nextInt((max - min) + 1) + min;
-		//	prime = (rand.nextLong() % max) + min; 
-			if(checkifPrime(prime))
+			if(Number.checkifPrime(prime))
 			{
 				surePrime = true;
 			}
@@ -121,107 +137,42 @@ public class RSA
 	// 1 < e < phi
 	public long getPublicKey()
 	{
+		
+	
 		Random rand = new Random();
 		boolean valid = false;
 		long e = 0;
 
 		while(!(valid))
 		{
-			//e = rand.nextLong(phi - 1) + 2;
-		//	e = (rand.nextLong() % (phi - 1)) + 2;
-			e = (long)rand.nextInt((int)phi - 1) + 2;
-			if((e % 2 != 0) && (gcdExtended(e, phi)[0] == 1))
+			//e = (long)rand.nextInt((int)phi - 1) + 2;
+			e = (rand.nextLong() + 2) % phi;
+			if((e % 2 != 0) && (Number.gcdExtended(e, phi)[0] == 1))
 			{
 				valid = true;
 			}
 		}
 
 		return e;
+
+
+	
+/*
+	
+		  long publicKey = 0;
+  
+          // One of these is guaranteed to go through
+          if (Number.gcdExtended(11, phi)[0] == 1)
+              publicKey = 11;
+          else if (Number.gcdExtended(13, phi)[0] == 1)
+              publicKey = 13;
+          else if (Number.gcdExtended(17, phi)[0] == 1)
+              publicKey = 17;
+  
+          return publicKey;
+
+ */
+
 	}
 	
-
-	public long[] gcdExtended(long a, long n)
-	{
-		//0 index stores the gcd value
-		//1 index stores the value of x
-		long[] array = new long[2];
-		long x = 0, y = 1;
-		long finalX = 1, finalY = 0;
-		long quotient, remainder, temp;	
-		long initial = n;
-
-		while(n != 0)
-		{
-			quotient = a / n;
-			remainder = a % n;
-
-			a = n;
-			n = remainder;
-
-			temp = x;
-			x = finalX - (quotient * x);
-			finalX = temp;
-
-			temp = y;
-			y = finalY - (quotient * y);
-			finalY = temp;
-		}
-		
-		if(finalX < 0)
-		{
-			finalX = finalX + initial;
-		}
-		array[0] = a;
-		array[1] = finalX;
-
-		return array;
-	}
-    public boolean checkifPrime(long num)
-    {
-        boolean flag = false;
-        
-        int t = 1;
-
-        if( num % 2 == 0)
-        {
-            flag = false;
-        }
-        else
-        {
-            while( t < 50)
-            {
-                Random rand = new Random();
-                //long randomNum = rand.nextLong(((num - 1) - 1) + 1 ) + 1;  // 0 < num < randomNum
-                
-				long randomNum = (rand.nextLong() % (num - 1)) + 1;
-                //long r = (long)(Math.pow(randomNum, (num - 1) / 2) % num);       //Binary modular exponentiation required eg : 37
-
-				long r = modularExponent(randomNum, (num - 1)/2, num);
-
-                if((r != 1) && (r != num - 1))
-                {
-                    flag = false;
-//                    System.out.println("100% not prime");
-                }
-                else
-                {
-                    flag = true;
-  //                  System.out.println("Probability : " + (1 - 1/(Math.pow(2,t))));
-                }
-
-                t++;
-            }
-
-        }
-
-        return flag;
-    }
-
-
-
-
-	public String convertToBinary(long exponent)
-	{
-		return new String(Long.toBinaryString(exponent));
-	}
 }
