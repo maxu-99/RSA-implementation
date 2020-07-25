@@ -1,177 +1,248 @@
-import java.util.*;
+/* Author : Mahmudul Hossain (19303235)
+ * Purpose : Perform RSA encryption and decryption for 
+ * 			 a given input file.
+ * Date modified : 17/05/2020
+ */
+
+import java.util.Scanner;
+import java.util.Random;
+import java.io.File;
+import java.io.PrintWriter;
+import java.io.IOException;
+import java.math.BigInteger;
+
 
 public class RSA
 {
 
-	//Works for (11,13) (33,41) (35,41)
+	//Minimum range for prime number to be generated
 	public static final long MINPRIME = 10000;
+	//Maximum range for prime number to be generated
 	public static final long MAXPRIME = 100000;
 
-//	public static final long MINPRIME = 11;
-//	public static final long MAXPRIME = 13;
 
-
+	//Prime numbers p and q
 	private long p;
 	private long q;
 
+	//n = p * q
+	//Used as the modulus for both encryption
+	//and decryption
 	private long n;
+
+	//Euler Totient value
+	// phi = (p-1) * (q-1)
 	private long phi;
 
+	//Public key for encryption
 	private long publicE;
+
+	//Private key for decryption
 	private long privateD;
 
-	private String cipher;
-	private String output;
 
-	public RSA(String line)
+	public RSA(String filename)
 	{
-		p = this.generateRandomPrime(MINPRIME, MAXPRIME);
-		q = this.generateRandomPrime(MINPRIME, MAXPRIME);
+		//Generate random prime numbers for p and q 
+		//within the specified range
+		p = Number.generateRandomPrime(MINPRIME, MAXPRIME);
+		q = Number.generateRandomPrime(MINPRIME, MAXPRIME);
 
+		//If by any chance p and q are same, this will generate
+		//weak keys, which should be avoided for good practice
 		while(p == q)
 		{
-			p = this.generateRandomPrime(MINPRIME, MAXPRIME);
-			q = this.generateRandomPrime(MINPRIME, MAXPRIME);
+			p = Number.generateRandomPrime(MINPRIME, MAXPRIME);
+			q = Number.generateRandomPrime(MINPRIME, MAXPRIME);
 		}
 
+		//Calculate n to be used in encryption and decryption
 		n = p * q;
+
+		//Calculate Euler Totient value to be used to generate keys
 		phi = (p - 1) * (q - 1);
 
-		System.out.println("Value of p : " + p + " , value of q : " + q);
-		System.out.println("Value of n : " + n + " , value of phi : " + phi);
 
-		//Generate random odd e values from 1 < e < phi
+		//Generate public key for encryption
+		//in range 1 < publicE < phi where
+		//publicE and phi are co-prime to each other
 		publicE = this.getPublicKey();
-		System.out.println("Public key e : " + publicE);
 
+		//Generate private key, finding the modular multiplicative
+		//inverse of publicE mod phi
+		//it satifies the condition :
+		//(privateD * publicE) mod phi = 1
 		privateD = Number.gcdExtended(publicE, phi)[1];
-		System.out.println("Private key d : " + privateD);
 
-		cipher = encrypt(line);
-		output = decrypt(cipher);
-		System.out.println("Encrypted : " + encrypt(line));
-		System.out.println("Decrypted : " + decrypt(encrypt(line)));
+		//Perfrom encryption and decryption on file
+		this.fileOp(filename);
+
+
+
 	}
 
-	public RSA()
-	{
-	}
-
-	public String getEncrypt()
-	{
-		return new String(cipher);
-	}
-
-	public String getDecrypt()
-	{
-		return new String(output);
-	}
-
+	//Perform rsa encryption to the imported line
+	//by encrypting each character M in the expression generating C : 
+	//C = (M^publicKey) mod n   where M < n
+	//Returns encrypted line containing numeric value
 	public String encrypt(String line)
 	{
 		
 		String encrypted = new String();
 		for(int ii = 0; ii < line.length(); ii++)
 		{
+			//Convert each character to ASCII equivalent
 			long plain = (long)line.charAt(ii);
-			System.out.println("Value of " + line.charAt(ii) + " is " + plain);	
-			if(plain > n)
-			{
-				System.out.println("Hello plain big :" + plain);
-			}
 			
-			long value = Number.modularExponent(plain, publicE, n);
-			System.out.println("Afer encryption value : " + value + " with character " + (char)value);
-			//System.out.println("Value : " + value);
-			if(value > n)
-			{
-				System.out.println("Hello value big : ");
-			}
-	
-
-			encrypted += Long.toString(value) + " ";
+			//Calculates (plain ^ publicE) mod n
+			//BigInteger datatype used here to prevent overflow of numbers
+			//since the returned expression might be a very large value 
+			//where primitive data type might fail to store
+			BigInteger value = Number.modularExponent(plain, publicE, n);
+			
+			//Store each calculated large value as string separated by <space>
+			//making it easier for decryption process
+			encrypted += value.toString() + " ";
 		}
 
 		return encrypted;
 		
 	}
-	
+
+	//Perform rsa decryption to the imported line containing numeric values
+	//by decrypting each value C in the expression generating M :
+	//M = (C ^ privateKey) mod n where M < n
+	//Return decrypted line of characters
 	public String decrypt(String line)
 	{
+		//Store each encrypted values in a string array
 		String[] array = line.split(" ");
 		String decrypt = new String();
 		for(int ii = 0; ii < array.length; ii++)
 		{
+			//Obtain the encrypted value C for each character
 			long value = Long.parseLong(array[ii]);
 			
-			long d = Number.modularExponent(value, privateD, n);
+			//Calculates (value ^ privateKey) mod n
+			//BigInteger datatype used here to prevent overflow of numbers
+			//since the returned expression might be a very large value 
+			//where primitive data type might fail to store
+			BigInteger d = Number.modularExponent(value, privateD, n);
+	
+			//The decrypted value d will be same as the ASCII value of plain character
+			long c = d.longValue();
 
-			decrypt += (char)d;
+			//Map the ASCII number to appropriate character
+			decrypt += (char)c;
+
 		}
 
 		return decrypt;
 	
 	}
 
-	public long generateRandomPrime(long minPrime, long maxPrime)
-	{
-		int min = (int)minPrime;
-		int max = (int)maxPrime;
-		Random rand = new Random();
-		boolean surePrime = false;
-		long prime = 0;
-
-		while(!(surePrime))
-		{
-			prime = (long)rand.nextInt((max - min) + 1) + min;
-			if(Number.checkifPrime(prime))
-			{
-				surePrime = true;
-			}
-		}
-
-		return prime;
-	}
-		
-
-	// 1 < e < phi
+	//Generate public key such that : 
+	//1 < public key < phi     AND
+	//public key is co-prime to phi
 	public long getPublicKey()
 	{
 		
-	
 		Random rand = new Random();
 		boolean valid = false;
+
+		//Public key to be determined
 		long e = 0;
 
+		//Generate e until it is avalid public key
 		while(!(valid))
 		{
-			//e = (long)rand.nextInt((int)phi - 1) + 2;
+			//Generate random values of e in range : 1 < e < phi
 			e = (rand.nextLong() + 2) % phi;
-			if((e % 2 != 0) && (Number.gcdExtended(e, phi)[0] == 1))
+
+			//Ensure that e is odd, co-prime to phi and positive to ensure that e
+			//avoids any overflow during random generation
+			if((e % 2 != 0) && (Number.gcdExtended(e, phi)[0] == 1) && (e > 0))
 			{
+				//Valid public key
 				valid = true;
 			}
 		}
 
 		return e;
+ 
+	}
 
 
-	
-/*
-	
-		  long publicKey = 0;
-  
-          // One of these is guaranteed to go through
-          if (Number.gcdExtended(11, phi)[0] == 1)
-              publicKey = 11;
-          else if (Number.gcdExtended(13, phi)[0] == 1)
-              publicKey = 13;
-          else if (Number.gcdExtended(17, phi)[0] == 1)
-              publicKey = 17;
-  
-          return publicKey;
+	//Open and read the input filename
+	//Encrypts each line read which is saved into encrypted.txt
+	//Decrypts each encrypted line which is saved into decrypted.txt
+	//Code adjusted from assignment 1
+	public void fileOp(String filename)
+	{
+		Scanner sc;
+		File fileToOpen;
+		String line = new String();
+		File encryptedOutput, decryptedOutput;
+		PrintWriter pwEncrypted, pwDecrypted;
+		int lineNum  = 1;
 
- */
+		try
+		{
+			encryptedOutput = new File("encrypted.txt");
+			decryptedOutput = new File("decrypted.txt");
+
+			pwEncrypted = new PrintWriter(encryptedOutput);
+			pwDecrypted = new PrintWriter(decryptedOutput);
+
+			//Open the plain text file for rsa operation
+			fileToOpen = new File(filename);
+			sc = new Scanner(fileToOpen);
+
+			//Read every line of input file 
+			//Perform RSA encryption and decryption
+			while(sc.hasNextLine())
+			{
+				//Plain text to encrypt
+				line = sc.nextLine();
+
+				//Ignore empty lines and print a new line
+				if(line.isEmpty())
+				{
+					pwEncrypted.println(" ");
+					pwDecrypted.println(" ");
+				}
+				else
+				{
+					//Obtain the encrypted text 
+					String text = this.encrypt(line);
+
+					//Obtain the decrypted text
+					String decipher = this.decrypt(text);
+
+					//Compare the plain text and decrypted line to ensure successful
+					//rsa encryption and decryption
+					//If an error occurs, output the line number where the rsa failed
+					if(!(line.compareTo(decipher) == 0))
+					{
+						System.out.println("ERROR at line number : " + lineNum);
+					}
+
+					//Print the encrypted and decrypted texts into appropriate files
+					pwEncrypted.println(text);
+					pwDecrypted.println(decipher);
+				}
+				lineNum++;
+
+			}
+
+			pwEncrypted.close();
+			pwDecrypted.close();
+			sc.close();
+		}
+		catch(IOException e)
+		{
+			System.err.println(e.getMessage());
+		}
 
 	}
 	
